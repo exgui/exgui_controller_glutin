@@ -62,7 +62,7 @@ impl App {
         self.run_proc(comp, |_, _| {})
     }
 
-    pub fn run_proc(&mut self, comp: &mut Comp, proc: impl Fn(&App, &mut Comp)) -> Result<(), AppError> {
+    pub fn run_proc(&mut self, comp: &mut Comp, mut proc: impl FnMut(&App, &mut Comp)) -> Result<(), AppError> {
         let mut mouse_controller = MouseInput::new();
         let mut events_loop = mem::replace(&mut self.events_loop, None)
             .ok_or(AppError::EventsLoopIsNone)?;
