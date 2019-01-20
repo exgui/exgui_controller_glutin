@@ -16,7 +16,7 @@ pub struct App {
     height: u32,
 }
 
-#[derive(FromMode)]
+#[derive(Debug, FromMode)]
 pub enum AppError {
     CreationError(CreationError),
     ContextError(ContextError),
