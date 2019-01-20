@@ -1,0 +1,14 @@
+[package]
+name = "exgui_controller_glutin"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+glutin = "0.13"
+gl = "0.10"
+chrono = "0.4"
+exgui = { path = "../exgui" }
+
+[dev-dependencies]
+rand = "0.4"
+lazy_static = "1.0"
