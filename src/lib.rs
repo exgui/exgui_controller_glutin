@@ -3,38 +3,58 @@ pub use exgui;
 pub use gl;
 
 use std::mem;
-use glutin::{WindowBuilder, ContextBuilder, EventsLoop, GlWindow, GlContext, ElementState,
-             CreationError, ContextError, MouseButton};
-use derive_more::From as FromMode;
-use exgui::{Comp, Color, controller::MouseInput};
+use glutin::{
+    WindowBuilder, ContextBuilder, EventsLoop, GlWindow, GlContext, ElementState, MouseButton,
+    CreationError, ContextError,
+};
+use exgui::{
+    Comp, Color,
+    renderer::Renderer,
+    controller::MouseInput,
+};
 
 pub enum AppState {
     Exit,
     Continue,
 }
 
-pub struct App {
+pub struct App<R: Renderer> {
     events_loop: Option<EventsLoop>,
     window: GlWindow,
+    renderer: R,
     background_color: Color,
     exit_by_escape: bool,
     width: u32,
     height: u32,
 }
 
-#[derive(Debug, FromMode)]
-pub enum AppError {
+#[derive(Debug)]
+pub enum AppError<RE> {
     CreationError(CreationError),
     ContextError(ContextError),
+    RendererError(RE),
     WindowNoLongerExists,
     EventsLoopIsNone,
 }
 
-impl App {
+impl<RE> From<CreationError> for AppError<RE> {
+    fn from(from: CreationError) -> Self {
+        AppError::CreationError(from)
+    }
+}
+
+impl<RE> From<ContextError> for AppError<RE> {
+    fn from(from: ContextError) -> Self {
+        AppError::ContextError(from)
+    }
+}
+
+impl<R: Renderer> App<R> {
     pub fn new(
         window_builder: WindowBuilder,
         context_builder: ContextBuilder,
-    ) -> Result<Self, AppError>
+        renderer: R,
+    ) -> Result<Self, AppError<R::Error>>
     {
         let events_loop = EventsLoop::new();
         let (width, height) = window_builder.window.max_dimensions.unwrap_or((0, 0));
@@ -42,6 +62,7 @@ impl App {
         Ok(App {
             events_loop: Some(events_loop),
             window,
+            renderer,
             background_color: Color::RGBA(0.8, 0.8, 0.8, 1.0),
             width,
             height,
@@ -59,23 +80,24 @@ impl App {
         self
     }
 
-    pub fn init(&mut self) -> Result<&mut Self, AppError> {
+    pub fn init(&mut self) -> Result<&mut Self, AppError<R::Error>> {
         unsafe {
             self.window.make_current()?;
             gl::load_with(|symbol| self.window.get_proc_address(symbol) as *const _);
             let color = self.background_color.as_arr();
             gl::ClearColor(color[0], color[1], color[2], color[3]);
         }
+        self.renderer.init().map_err(|e| AppError::RendererError(e))?;
         Ok(self)
     }
 
     #[inline]
-    pub fn run(&mut self, comp: &mut Comp) -> Result<(), AppError> {
+    pub fn run(&mut self, comp: &mut Comp) -> Result<(), AppError<R::Error>> {
         self.run_proc(comp, |_, _| AppState::Continue)
     }
 
-    pub fn run_proc(&mut self, comp: &mut Comp, mut proc: impl FnMut(&App, &mut Comp) -> AppState)
-        -> Result<(), AppError>
+    pub fn run_proc(&mut self, comp: &mut Comp, mut proc: impl FnMut(&mut App<R>, &mut Comp) -> AppState)
+        -> Result<(), AppError<R::Error>>
     {
         let mut mouse_controller = MouseInput::new();
         let mut events_loop = mem::replace(&mut self.events_loop, None)
@@ -95,6 +117,10 @@ impl App {
 
             if let AppState::Exit = proc(self, comp) {
                 break;
+            }
+
+            if let Some(node) = comp.view_node_as_drawable_mut() {
+                self.renderer.render(node).map_err(|e| AppError::RendererError(e))?;
             }
 
             self.window.swap_buffers()?;
@@ -134,5 +160,13 @@ impl App {
 
     pub fn window(&self) -> &GlWindow {
         &self.window
+    }
+
+    pub fn renderer(&self) -> &R {
+        &self.renderer
+    }
+
+    pub fn renderer_mut(&mut self) -> &mut R {
+        &mut self.renderer
     }
 }

@@ -7,7 +7,6 @@ edition = "2018"
 glutin = "0.13"
 gl = "0.10"
 chrono = "0.4"
-derive_more = "0.13"
 exgui = { git = "https://github.com/exgui/exgui.git" }
 
 [dev-dependencies]
