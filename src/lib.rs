@@ -103,28 +103,7 @@ impl<R: Renderer> App<R> {
         let mut events_loop = mem::replace(&mut self.events_loop, None)
             .ok_or(AppError::EventsLoopIsNone)?;
         let mut running = true;
-        while running {
-            let (width, height) = self.window.get_inner_size()
-                .ok_or(AppError::WindowNoLongerExists)?;
-            self.width = width;
-            self.height = height;
-            unsafe {
-                gl::Viewport(0, 0, width as i32, height as i32);
-                gl::Clear(
-                    gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT,
-                );
-            }
-
-            if let AppState::Exit = proc(self, comp) {
-                break;
-            }
-
-            if let Some(node) = comp.view_node_as_drawable_mut() {
-                self.renderer.render(node).map_err(|e| AppError::RendererError(e))?;
-            }
-
-            self.window.swap_buffers()?;
-
+        loop {
             events_loop.poll_events(|event| match event {
                 glutin::Event::WindowEvent { event, .. } => {
                     match event {
@@ -148,6 +127,31 @@ impl<R: Renderer> App<R> {
                 }
                 _ => (),
             });
+
+            if !running {
+                break;
+            }
+
+            let (width, height) = self.window.get_inner_size()
+                .ok_or(AppError::WindowNoLongerExists)?;
+            self.width = width;
+            self.height = height;
+            unsafe {
+                gl::Viewport(0, 0, width as i32, height as i32);
+                gl::Clear(
+                    gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT,
+                );
+            }
+
+            if let AppState::Exit = proc(self, comp) {
+                break;
+            }
+
+            if let Some(node) = comp.view_node_as_drawable_mut() {
+                self.renderer.render(node).map_err(|e| AppError::RendererError(e))?;
+            }
+
+            self.window.swap_buffers()?;
         }
         mem::replace(&mut self.events_loop, Some(events_loop));
 
