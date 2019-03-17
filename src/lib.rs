@@ -8,7 +8,7 @@ use glutin::{
     CreationError, ContextError,
 };
 use exgui::{
-    Comp, Color,
+    Comp, Color, SystemMessage,
     renderer::Renderer,
     controller::MouseInput,
 };
@@ -146,6 +146,8 @@ impl<R: Renderer> App<R> {
             if let AppState::Exit = proc(self, comp) {
                 break;
             }
+
+            comp.send_system(SystemMessage::FrameChange);
 
             if let Some(node) = comp.view_node_as_drawable_mut() {
                 self.renderer.render(node).map_err(|e| AppError::RendererError(e))?;
